@@ -512,6 +512,13 @@ async function extractAI(){
 }
 
 function goToSend(){
+  // Always re-enable send button and reset status bar before showing send screen
+  const btn=document.getElementById('sendBtn');
+  btn.disabled=false;
+  btn.textContent='Save & send →';
+  document.getElementById('sendStatusBar').style.display='none';
+  document.getElementById('sendStatusBar').className='status-bar blue';
+  document.getElementById('sendStatusBar').innerHTML=`<div class="spinner blue"></div><span>Preparing…</span>`;
   const fn=updateFilename();
   document.getElementById('sendFilename').textContent=fn;
   const hasToken=!!st.googleToken;
@@ -693,15 +700,35 @@ async function doExport(){
 }
 
 function resetAndNew(){
+  // Reset state
   st={file:null,fileType:'',b64:'',mediaType:'',googleToken:st.googleToken};
+  // Clear all form fields
   ['fDate','fAmount','fDesc','fGuests','fEventName','fComments'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('fCC').value='B2B';
   document.getElementById('fCat').value='TRANSPORT';
+  document.getElementById('fCurrency').value='EUR';
+  document.getElementById('fCountry').value='France';
+  document.getElementById('fEntity').value='Strong France';
+  document.getElementById('fEventType').value='';
+  // Clear preview
   document.getElementById('previewBox').innerHTML='';
+  // Fully reset send screen
   document.getElementById('sendStatusBar').style.display='flex';
+  document.getElementById('sendStatusBar').className='status-bar blue';
   document.getElementById('sendStatusBar').innerHTML=`<div class="spinner blue"></div><span>Preparing…</span>`;
   document.getElementById('sendActions').style.display='none';
-  updateTypes();goTo('upload');
+  document.getElementById('sendFilename').textContent='';
+  document.getElementById('sendResultRows').innerHTML='';
+  // Re-enable send button in case it was disabled
+  const btn=document.getElementById('sendBtn');
+  btn.disabled=false;
+  btn.textContent='Save & send →';
+  // Reset AI bar
+  document.getElementById('aiBar').className='status-bar green';
+  document.getElementById('aiBar').innerHTML=`<div class="spinner"></div><span>Reading receipt with AI…</span>`;
+  updateTypes();
+  updateFilename();
+  goTo('upload');
 }
 
 (function init(){
