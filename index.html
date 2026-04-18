@@ -222,9 +222,9 @@ input[type=file]{display:none}
         <label class="field-label">Description</label>
         <input class="field-input" type="text" id="fDesc" placeholder="e.g. Uber CDG to client office">
       </div>
-      <div class="field-group" id="guestField" style="display:none">
-        <label class="field-label">Guests — company + name <span class="req">*</span></label>
-        <input class="field-input" type="text" id="fGuests" placeholder="ClientCo - John Smith, Jane Doe">
+      <div class="field-group" id="guestField">
+        <label class="field-label">Company &amp; guests (NOM DE LA SOCIÉTÉ &amp; DES INVITÉS)</label>
+        <input class="field-input" type="text" id="fGuests" placeholder="e.g. Acme Corp - John Smith, Jane Doe">
       </div>
       <div class="field-group">
         <label class="field-label">Event type (if applicable)</label>
@@ -402,7 +402,7 @@ function updateTypes(){
   const cat=document.getElementById('fCat').value;
   const sel=document.getElementById('fType');
   sel.innerHTML=TYPES[cat].map(t=>`<option>${t}</option>`).join('');
-  document.getElementById('guestField').style.display=cat==='RESTAURATION'?'block':'none';
+  // guestField always visible
   updateFilename();
 }
 
@@ -670,16 +670,22 @@ async function doExport(){
       ws[`M${row}`]={t:'s',v:exp.eventName||''};
       ws[`N${row}`]={t:'s',v:exp.currency||'EUR'};
       ws[`O${row}`]={t:'n',v:parseFloat(exp.amount)||0};
-      ws[`P${row}`]={t:'n',v:parseFloat(exp.amount)||0,f:`VLOOKUP(N${row},Devises!$B$2:$C$16,2,FALSE)*O${row}`};
+      if(exp.currency==='EUR'){
+        ws[`P${row}`]={t:'n',v:parseFloat(exp.amount)||0,f:`VLOOKUP(N${row},Devises!$B$2:$C$16,2,FALSE)*O${row}`};
+      } else {
+        // Leave EUR column empty for non-EUR — user fills exchange rate manually
+        ws[`P${row}`]={t:'s',v:''};
+      }
       ws[`Q${row}`]={t:'s',v:exp.comments||''};
     });
     const totalEUR=expenses.filter(e=>e.currency==='EUR').reduce((s,e)=>s+parseFloat(e.amount||0),0);
+    const nonEURcount=expenses.filter(e=>e.currency!=='EUR').length;
     const fname=`NDF_Raul_Lucas_${monthName}_${year}.xlsx`;
     XLSX.writeFile(wb,fname);
     statusEl.className='status-bar green';
     statusEl.innerHTML=`<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><span>${fname} downloaded — ${expenses.length} expenses, ${totalEUR.toFixed(2)} EUR</span>`;
     previewEl.style.display='block';
-    previewEl.innerHTML=`<div class="info-card" style="margin-top:0.5rem"><strong>${expenses.length} expenses for ${monthName} ${year}</strong><br>Total EUR: <strong>${totalEUR.toFixed(2)} €</strong><br><br>Open in Excel, do a final review and send to HR.</div>`;
+    previewEl.innerHTML=`<div class="info-card" style="margin-top:0.5rem"><strong>${expenses.length} expenses for ${monthName} ${year}</strong><br>EUR total: <strong>${totalEUR.toFixed(2)} €</strong>${nonEURcount>0?`<br>⚠ ${nonEURcount} non-EUR expense(s) — fill in the EUR column manually`:''}<br><br>Open in Excel, do a final review and send to HR.</div>`;
   }catch(e){
     statusEl.className='status-bar amber';
     statusEl.innerHTML=`<span>⚠ Export failed: ${e.message}</span>`;
