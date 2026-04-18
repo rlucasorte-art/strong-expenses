@@ -92,6 +92,9 @@ select.field-input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http:/
 .success-icon svg{width:26px;height:26px;stroke:var(--green-dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .success-title{font-size:20px;font-weight:700;margin-bottom:6px}
 .success-sub{font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:1rem}
+.month-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.25rem;margin-bottom:0.75rem}
+.month-card-title{font-size:14px;font-weight:600;margin-bottom:4px}
+.month-card-sub{font-size:12px;color:var(--text2)}
 input[type=file]{display:none}
 </style>
 </head>
@@ -135,13 +138,9 @@ input[type=file]{display:none}
       <div class="field-group">
         <label class="field-label">Google Drive base folder name</label>
         <input class="field-input" type="text" id="cfgFolder" placeholder="Strong Expenses" value="Strong Expenses">
-        <p style="font-size:11px;color:var(--text3);margin-top:4px">Subfolders like 2026-04/receipts are created automatically</p>
       </div>
       <div style="margin-top:1rem">
         <button class="btn primary full" onclick="saveConfig()">Save & continue</button>
-      </div>
-      <div class="info-card" style="margin-top:0.75rem;font-size:12px">
-        <strong>Google setup:</strong> console.cloud.google.com → New project → Enable Drive API + Gmail API → Credentials → OAuth Client ID (Web application) → add <code>https://localhost</code> as authorised origin → copy Client ID here.
       </div>
     </div>
 
@@ -161,10 +160,12 @@ input[type=file]{display:none}
         <button class="btn" onclick="document.getElementById('cameraInput').click()">📷 Take photo</button>
         <button class="btn" onclick="document.getElementById('fileInput').click()">📄 Browse file</button>
       </div>
-      <div class="btn-row">
+      <div class="btn-row" style="margin-bottom:0.75rem">
         <button class="btn small" onclick="goTo('config')">⚙ Settings</button>
         <button class="btn small primary" id="signinBtn" onclick="signInGoogle()">Sign in Google</button>
       </div>
+      <div class="divider"><span>month-end</span></div>
+      <button class="btn full" onclick="goTo('export')" style="font-size:13px">📊 Export monthly Excel →</button>
     </div>
 
     <!-- REVIEW -->
@@ -271,12 +272,43 @@ input[type=file]{display:none}
         <div class="filename-box" id="successFilename"></div>
         <div class="card" id="successRows" style="text-align:left;margin-bottom:1rem"></div>
         <button class="btn primary full" onclick="resetAndNew()">New expense →</button>
+        <button class="btn full" style="margin-top:8px;font-size:13px" onclick="goTo('export')">📊 Export monthly Excel</button>
+      </div>
+    </div>
+
+    <!-- EXPORT -->
+    <div class="screen" id="screen-export">
+      <p class="section-title">Export monthly Excel</p>
+      <div class="info-card">Select the month you want to export as an Excel file ready to submit to HR.</div>
+      <div class="field-group">
+        <label class="field-label">Month</label>
+        <select class="field-input" id="exportMonth">
+          <option value="2026-01">January 2026</option>
+          <option value="2026-02">February 2026</option>
+          <option value="2026-03">March 2026</option>
+          <option value="2026-04" selected>April 2026</option>
+          <option value="2026-05">May 2026</option>
+          <option value="2026-06">June 2026</option>
+          <option value="2026-07">July 2026</option>
+          <option value="2026-08">August 2026</option>
+          <option value="2026-09">September 2026</option>
+          <option value="2026-10">October 2026</option>
+          <option value="2026-11">November 2026</option>
+          <option value="2026-12">December 2026</option>
+        </select>
+      </div>
+      <div id="exportStatus" style="display:none" class="status-bar blue"><div class="spinner blue"></div><span>Loading expenses…</span></div>
+      <div id="exportPreview" style="display:none"></div>
+      <div class="btn-row" style="margin-top:0.75rem">
+        <button class="btn danger" onclick="goTo('upload')">← Back</button>
+        <button class="btn primary" id="exportBtn" onclick="doExport()">Generate Excel →</button>
       </div>
     </div>
 
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const TYPES={
   TRANSPORT:['Taxi','Train','Avion','Bus','Metro','Bateau','Tram','Parking','Peage','Essence','Location vehicule'],
@@ -291,19 +323,32 @@ const TYPES={
   VEHICULE_PERSONNEL:['Indemnites kilometriques','Recharge vehicule','Lavage vehicule']
 };
 const MONTHS_EN=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTHS_FR=['Janvier 2026','Février 2026','Mars 2026','Avril 2026','Mai 2026','Juin 2026','Juillet 2026','Août 2026','Septembre 2026','Octobre 2026','Novembre 2026','Décembre 2026'];
 let st={file:null,fileType:'',b64:'',mediaType:'',googleToken:null};
 
 function cfg(k){return localStorage.getItem(k)||''}
 function setCfg(k,v){localStorage.setItem(k,v)}
 
+// Save expenses locally per month
+function saveExpenseLocally(monthKey,expense){
+  const key=`expenses_${monthKey}`;
+  const existing=JSON.parse(localStorage.getItem(key)||'[]');
+  existing.push(expense);
+  localStorage.setItem(key,JSON.stringify(existing));
+}
+function getExpenses(monthKey){
+  return JSON.parse(localStorage.getItem(`expenses_${monthKey}`)||'[]');
+}
+
 function goTo(name){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('visible'));
   document.getElementById('screen-'+name).classList.add('visible');
-  const order=['upload','review','send','success'];
-  const i=order.indexOf(name);
+  const order=['upload','review','send','success','export','config'];
+  const i=['upload','review','send','success'].indexOf(name);
   ['s1','s2','s3','s4'].forEach((id,j)=>{
     const e=document.getElementById(id);
-    e.className='step'+(j<i?' done':j===i?' active':'');
+    if(i<0){e.className='step'}
+    else{e.className='step'+(j<i?' done':j===i?' active':'')}
   });
   window.scrollTo(0,0);
 }
@@ -327,14 +372,14 @@ function saveConfig(){
   const g=document.getElementById('cfgGoogleClientId').value.trim();
   const e=document.getElementById('cfgCorpEmail').value.trim();
   const f=document.getElementById('cfgFolder').value.trim()||'Strong Expenses';
-  if(!k||!g||!e){alert('Please fill in Anthropic key, Google Client ID and corporate email');return}
+  if(!k||!g||!e){alert('Please fill in all required fields');return}
   setCfg('anthKey',k);setCfg('cfgGoogleClientId',g);setCfg('corpEmail',e);setCfg('baseFolder',f);
   updateAuthUI();goTo('upload');
 }
 
 function signInGoogle(){
   const cid=cfg('cfgGoogleClientId');
-  if(!cid){alert('Please go to Settings first and enter your Google Client ID');goTo('config');return}
+  if(!cid){alert('Please go to Settings first');goTo('config');return}
   const scope=encodeURIComponent('https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.send');
   const redirectUri=encodeURIComponent(window.location.href.split('?')[0].split('#')[0]);
   const url=`https://accounts.google.com/o/oauth2/v2/auth?client_id=${cid}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}&prompt=select_account`;
@@ -462,7 +507,7 @@ async function extractAI(){
     updateFilename();
   }catch(e){
     bar.className='status-bar amber';
-    bar.innerHTML=`<span>⚠ Could not read receipt automatically — please fill in manually</span>`;
+    bar.innerHTML=`<span>⚠ Could not read receipt — please fill in manually</span>`;
   }
 }
 
@@ -472,6 +517,7 @@ function goToSend(){
   const hasToken=!!st.googleToken;
   document.getElementById('sendResultRows').innerHTML=`
     <div class="result-row"><span class="result-label">Upload receipt to Google Drive</span><span class="result-val ${hasToken?'ok':'warn'}">${hasToken?'✓ Ready':'⚠ Sign in first'}</span></div>
+    <div class="result-row"><span class="result-label">Save to monthly log</span><span class="result-val ok">✓ Always saved locally</span></div>
     <div class="result-row"><span class="result-label">Send email to rlucas@strong-eu.com</span><span class="result-val ${hasToken?'ok':'warn'}">${hasToken?'✓ Ready':'⚠ Sign in first'}</span></div>`;
   document.getElementById('sendStatusBar').style.display='none';
   document.getElementById('sendActions').style.display='block';
@@ -479,7 +525,11 @@ function goToSend(){
   goTo('send');
 }
 
-// Google Drive helpers
+function getMonthFolder(dateStr){
+  const d=dateStr?new Date(dateStr):new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
 async function driveCall(method,path,body,isBlob,extraHeaders){
   const headers={Authorization:'Bearer '+st.googleToken,...(extraHeaders||{})};
   if(body&&!isBlob)headers['Content-Type']='application/json';
@@ -499,14 +549,9 @@ async function getOrCreateFolder(name,parentId){
 }
 
 async function uploadFileToDrive(fname,b64data,mimeType,folderId){
-  const bin=Uint8Array.from(atob(b64data),c=>c.charCodeAt(0));
-  const meta=JSON.stringify({name:fname,parents:[folderId]});
   const boundary='-------314159265358979323846';
-  const delimiter=`\r\n--${boundary}\r\n`;
-  const closeDelim=`\r\n--${boundary}--`;
-  const metaPart=`${delimiter}Content-Type: application/json\r\n\r\n${meta}`;
-  const filePart=`${delimiter}Content-Type: ${mimeType}\r\nContent-Transfer-Encoding: base64\r\n\r\n${b64data}${closeDelim}`;
-  const body=metaPart+filePart;
+  const meta=JSON.stringify({name:fname,parents:[folderId]});
+  const body=`\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${meta}\r\n--${boundary}\r\nContent-Type: ${mimeType}\r\nContent-Transfer-Encoding: base64\r\n\r\n${b64data}\r\n--${boundary}--`;
   const res=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',{
     method:'POST',
     headers:{Authorization:'Bearer '+st.googleToken,'Content-Type':`multipart/related; boundary="${boundary}"`},
@@ -516,12 +561,6 @@ async function uploadFileToDrive(fname,b64data,mimeType,folderId){
   return res.json();
 }
 
-function getMonthFolder(dateStr){
-  const d=dateStr?new Date(dateStr):new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-}
-
-// Gmail send
 function makeEmail(to,subject,body){
   const msg=`To: ${to}\r\nSubject: ${subject}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${body}`;
   return btoa(unescape(encodeURIComponent(msg))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
@@ -544,37 +583,127 @@ async function doSend(){
   statusBar.style.display='flex';statusBar.className='status-bar blue';
   const fn=updateFilename();
   const dateVal=document.getElementById('fDate').value;
+  const monthKey=getMonthFolder(dateVal);
+  const expense={
+    filename:fn,
+    date:dateVal,
+    cc:document.getElementById('fCC').value,
+    desc:document.getElementById('fDesc').value,
+    cat:document.getElementById('fCat').value,
+    type:document.getElementById('fType').value,
+    guests:document.getElementById('fGuests').value,
+    country:document.getElementById('fCountry').value,
+    entity:document.getElementById('fEntity').value,
+    eventType:document.getElementById('fEventType').value,
+    eventName:document.getElementById('fEventName').value,
+    currency:document.getElementById('fCurrency').value,
+    amount:parseFloat(document.getElementById('fAmount').value)||0,
+    comments:document.getElementById('fComments').value,
+    savedAt:new Date().toISOString()
+  };
+  // Always save locally first
+  saveExpenseLocally(monthKey,expense);
   try{
-    // Create folder structure
     statusBar.innerHTML=`<div class="spinner blue"></div><span>Creating folders in Google Drive…</span>`;
     const baseName=cfg('baseFolder')||'Strong Expenses';
-    const monthStr=getMonthFolder(dateVal);
     const baseId=await getOrCreateFolder(baseName,null);
-    const monthId=await getOrCreateFolder(monthStr,baseId);
+    const monthId=await getOrCreateFolder(monthKey,baseId);
     const receiptsId=await getOrCreateFolder('receipts',monthId);
-
-    // Upload receipt
     statusBar.innerHTML=`<div class="spinner blue"></div><span>Uploading receipt…</span>`;
     const uploaded=await uploadFileToDrive(fn,st.b64,st.mediaType,receiptsId);
     const fileLink=uploaded.webViewLink||'(saved to Google Drive)';
-
-    // Send email
     statusBar.innerHTML=`<div class="spinner blue"></div><span>Sending confirmation email…</span>`;
     const corpEmail=cfg('corpEmail')||'rlucas@strong-eu.com';
-    const emailBody=`Expense recorded successfully.\n\nFile: ${fn}\nGoogle Drive: ${baseName}/${monthStr}/receipts/\nDrive link: ${fileLink}\n\nDate: ${dateVal}\nAmount: ${document.getElementById('fAmount').value} ${document.getElementById('fCurrency').value}\nCategory: ${document.getElementById('fCat').value} — ${document.getElementById('fType').value}\nCountry: ${document.getElementById('fCountry').value}\nCentre de coût: ${document.getElementById('fCC').value}\nDescription: ${document.getElementById('fDesc').value}\n${document.getElementById('fGuests').value?'Guests: '+document.getElementById('fGuests').value+'\n':''}${document.getElementById('fComments').value?'Comments: '+document.getElementById('fComments').value:''}`;
+    const expenses=getExpenses(monthKey);
+    const emailBody=`Expense recorded successfully.\n\nFile: ${fn}\nGoogle Drive: ${baseName}/${monthKey}/receipts/\nLink: ${fileLink}\n\nDate: ${dateVal}\nAmount: ${expense.amount} ${expense.currency}\nCategory: ${expense.cat} — ${expense.type}\nCountry: ${expense.country}\nCentre de coût: ${expense.cc}\nDescription: ${expense.desc}\n${expense.guests?'Guests: '+expense.guests+'\n':''}${expense.comments?'Comments: '+expense.comments+'\n':''}\n---\nTotal expenses logged this month: ${expenses.length}\nTotal amount (EUR): ${expenses.filter(e=>e.currency==='EUR').reduce((s,e)=>s+e.amount,0).toFixed(2)} EUR`;
     await sendGmail(corpEmail,`✓ Expense: ${fn}`,emailBody);
-
-    // Success
-    document.getElementById('successSub').textContent=`Receipt saved to Google Drive and confirmation sent to ${corpEmail}.`;
+    const expenses2=getExpenses(monthKey);
+    document.getElementById('successSub').textContent=`Receipt saved to Google Drive and confirmation sent to ${corpEmail}. ${expenses2.length} expense${expenses2.length===1?'':'s'} logged this month.`;
     document.getElementById('successFilename').textContent=fn;
     document.getElementById('successRows').innerHTML=`
-      <div class="result-row"><span class="result-label">Google Drive folder</span><span class="result-val ok">✓ ${baseName}/${monthStr}/receipts</span></div>
-      <div class="result-row"><span class="result-label">Confirmation email</span><span class="result-val ok">✓ Sent to ${corpEmail}</span></div>`;
+      <div class="result-row"><span class="result-label">Google Drive</span><span class="result-val ok">✓ ${baseName}/${monthKey}/receipts</span></div>
+      <div class="result-row"><span class="result-label">Monthly log</span><span class="result-val ok">✓ ${expenses2.length} expenses saved</span></div>
+      <div class="result-row"><span class="result-label">Email</span><span class="result-val ok">✓ Sent to ${corpEmail}</span></div>`;
     goTo('success');
   }catch(e){
     statusBar.className='status-bar amber';
     statusBar.innerHTML=`<span>⚠ Error: ${e.message}</span>`;
     btn.disabled=false;btn.textContent='Retry →';
+  }
+}
+
+async function doExport(){
+  const monthVal=document.getElementById('exportMonth').value;
+  const expenses=getExpenses(monthVal);
+  const statusEl=document.getElementById('exportStatus');
+  const previewEl=document.getElementById('exportPreview');
+  if(expenses.length===0){
+    alert(`No expenses found for ${monthVal}. Scan some receipts first!`);return;
+  }
+  statusEl.style.display='flex';
+  statusEl.innerHTML=`<div class="spinner blue"></div><span>Building Excel file…</span>`;
+  previewEl.style.display='none';
+  try{
+    const d=new Date(monthVal+'-01');
+    const monthName=MONTHS_EN[d.getMonth()];
+    const year=d.getFullYear();
+    const monthFR=MONTHS_FR[d.getMonth()];
+    const wb=XLSX.utils.book_new();
+    // Build NDF sheet data
+    const ws_data=[
+      ['Prénom ','Raul'],
+      ['Nom ','Lucas'],
+      ['Centre de coût ','B2B'],
+      ['Société ','Strong France'],
+      ['Manager N+1','T STRUTT'],
+      ['Description','Note de Frais '],
+      ['Mois',monthFR],
+      [],
+      ['NUMÉRO','DATE','CENTRE DE COÛT','JUSTIFICATIFS','A IMPRIMER','DESCRIPTION','CATEGORIE','TYPE DE DÉPENSE','NOM DE LA SOCIÉTÉ & DES INVITÉS','PAYS','ENTITÉ','TYPE D\'ÉVÉNEMENT','NOM DE L\'ÉVÉNEMENT','DEVISE','MONTANT EN DEVISE','MONTANT EN EUROS','COMMENTAIRES']
+    ];
+    expenses.forEach((exp,i)=>{
+      ws_data.push([
+        i+1,
+        exp.date,
+        exp.cc,
+        'OUI',
+        '',
+        exp.desc,
+        exp.cat,
+        exp.type,
+        exp.guests||'',
+        exp.country,
+        exp.entity||'Strong France',
+        exp.eventType||'',
+        exp.eventName||'',
+        exp.currency,
+        exp.amount,
+        exp.currency==='EUR'?exp.amount:'',
+        exp.comments||''
+      ]);
+    });
+    // Add total row
+    ws_data.push([]);
+    const totalEUR=expenses.filter(e=>e.currency==='EUR').reduce((s,e)=>s+e.amount,0);
+    ws_data.push(['','','','','','','','','','','','','','TOTAL EUR','',totalEUR.toFixed(2),'']);
+    ws_data.push([]);
+    ws_data.push(['','','','','','','','','','','','TO BE PAID IN:','','EUR',totalEUR.toFixed(2),'','']);
+    ws_data.push([]);
+    ws_data.push(['"I certify that the above is true and correct"']);
+    ws_data.push(['Supervisor Name :','Olivier BONNAFOUX','','','','','','','','','','Your signature']);
+    const ws=XLSX.utils.aoa_to_sheet(ws_data);
+    // Column widths
+    ws['!cols']=[{wch:8},{wch:12},{wch:14},{wch:12},{wch:10},{wch:30},{wch:18},{wch:20},{wch:30},{wch:14},{wch:16},{wch:18},{wch:20},{wch:8},{wch:16},{wch:16},{wch:25}];
+    XLSX.utils.book_append_sheet(wb,ws,'Note de Frais');
+    const fname=`NDF_Raul_Lucas_${monthName}_${year}.xlsx`;
+    XLSX.writeFile(wb,fname);
+    statusEl.className='status-bar green';
+    statusEl.innerHTML=`<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><span>${fname} downloaded — ${expenses.length} expenses, ${totalEUR.toFixed(2)} EUR total</span>`;
+    previewEl.style.display='block';
+    previewEl.innerHTML=`<div class="info-card" style="margin-top:0.5rem"><strong>${expenses.length} expenses exported for ${monthName} ${year}</strong><br>Total EUR: <strong>${totalEUR.toFixed(2)} €</strong><br><br>The file has been downloaded to your device. Open it in Excel to do your final review before sending to HR.</div>`;
+  }catch(e){
+    statusEl.className='status-bar amber';
+    statusEl.innerHTML=`<span>⚠ Export failed: ${e.message}</span>`;
   }
 }
 
@@ -593,10 +722,14 @@ function resetAndNew(){
 (function init(){
   if(cfg('anthKey'))document.getElementById('cfgAnthKey').value=cfg('anthKey');
   if(cfg('cfgGoogleClientId'))document.getElementById('cfgGoogleClientId').value=cfg('cfgGoogleClientId');
-  if(cfg('corpEmail'))document.getElementById('cfgCorpEmail').value=cfg('corpEmail');
-  else document.getElementById('cfgCorpEmail').value='rlucas@strong-eu.com';
+  document.getElementById('cfgCorpEmail').value=cfg('corpEmail')||'rlucas@strong-eu.com';
   if(cfg('baseFolder'))document.getElementById('cfgFolder').value=cfg('baseFolder');
   document.getElementById('fCC').value='B2B';
+  // Set export month to current
+  const now=new Date();
+  const currentMonth=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const sel=document.getElementById('exportMonth');
+  for(let o of sel.options)if(o.value===currentMonth){sel.value=currentMonth;break}
   updateTypes();updateAuthUI();
 })();
 </script>
