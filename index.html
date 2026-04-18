@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Strong Expenses">
+<title>Strong — Expenses</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --green:#1D9E75;--green-dark:#0F6E56;--green-light:#E1F5EE;--green-mid:#9FE1CB;
+  --blue:#185FA5;--blue-light:#E6F1FB;
+  --amber:#633806;--amber-light:#FAEEDA;
+  --bg:#F8F8F6;--surface:#FFFFFF;--border:#E0DED8;--border2:#C8C6C0;
+  --text:#1A1A18;--text2:#5F5E5A;--text3:#888780;
+  --radius:10px;--radius-lg:14px;
+  --font:-apple-system,'SF Pro Text',system-ui,sans-serif;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;max-width:430px;margin:0 auto}
+.app{display:flex;flex-direction:column;min-height:100vh}
+.header{background:var(--surface);border-bottom:0.5px solid var(--border);padding:1rem 1.25rem 0.75rem;position:sticky;top:0;z-index:10}
+.header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem}
+.logo{font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--text2)}
+.auth-pill{display:flex;align-items:center;gap:5px;background:var(--bg);border:0.5px solid var(--border);border-radius:20px;padding:4px 10px}
+.auth-dot{width:7px;height:7px;border-radius:50%;background:#C8C6C0;flex-shrink:0;transition:background 0.3s}
+.auth-dot.on{background:var(--green)}
+.auth-text{font-size:11px;color:var(--text2)}
+.steps{display:flex;gap:4px}
+.step{flex:1;height:2.5px;border-radius:2px;background:var(--border);transition:background 0.3s}
+.step.active{background:var(--green)}
+.step.done{background:var(--green-mid)}
+.content{flex:1;padding:1rem 1.25rem 2rem;overflow-y:auto}
+.screen{display:none}
+.screen.visible{display:block}
+.section-title{font-size:16px;font-weight:600;color:var(--text);margin-bottom:0.75rem}
+.upload-zone{border:1.5px dashed var(--border2);border-radius:var(--radius-lg);padding:2rem 1rem;text-align:center;cursor:pointer;transition:border-color 0.2s,background 0.2s;margin-bottom:1rem;background:var(--surface)}
+.upload-zone:active{border-color:var(--green);background:var(--green-light)}
+.upload-icon{width:48px;height:48px;border-radius:50%;background:var(--green-light);margin:0 auto 0.75rem;display:flex;align-items:center;justify-content:center}
+.upload-icon svg{width:22px;height:22px;stroke:var(--green-dark);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.upload-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:3px}
+.upload-sub{font-size:13px;color:var(--text2)}
+.divider{display:flex;align-items:center;gap:8px;margin:0.75rem 0}
+.divider::before,.divider::after{content:'';flex:1;height:0.5px;background:var(--border)}
+.divider span{font-size:12px;color:var(--text3)}
+.btn-row{display:flex;gap:8px}
+.btn{padding:11px 16px;border-radius:var(--radius);border:0.5px solid var(--border2);background:var(--surface);color:var(--text);font-size:14px;font-weight:500;cursor:pointer;flex:1;font-family:var(--font);transition:background 0.15s;-webkit-appearance:none}
+.btn:active{background:var(--bg)}
+.btn.primary{background:var(--green);border-color:var(--green);color:#fff}
+.btn.primary:active{background:var(--green-dark)}
+.btn.danger{border-color:#E24B4A;color:#E24B4A}
+.btn.small{padding:8px 12px;font-size:13px}
+.btn.full{width:100%}
+.btn:disabled{opacity:0.5}
+.field-group{margin-bottom:0.65rem}
+.field-label{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:3px;display:block}
+.req{color:#E24B4A;margin-left:2px}
+.field-input{width:100%;padding:10px 12px;border-radius:var(--radius);border:0.5px solid var(--border2);background:var(--surface);color:var(--text);font-size:15px;font-family:var(--font);-webkit-appearance:none;appearance:none}
+.field-input:focus{outline:none;border-color:var(--green)}
+select.field-input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888780' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;cursor:pointer}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.card{background:var(--surface);border-radius:var(--radius-lg);border:0.5px solid var(--border);padding:1rem 1.25rem;margin-bottom:1rem}
+.info-card{background:var(--bg);border-radius:var(--radius);padding:0.75rem 1rem;margin-bottom:1rem;font-size:13px;color:var(--text2);line-height:1.6}
+.info-card code{font-size:11px;background:var(--border);padding:2px 5px;border-radius:4px;font-family:monospace;color:var(--text)}
+.status-bar{border-radius:var(--radius);padding:10px 14px;margin-bottom:1rem;display:flex;align-items:center;gap:10px}
+.status-bar.green{background:var(--green-light)}
+.status-bar.blue{background:var(--blue-light)}
+.status-bar.amber{background:var(--amber-light)}
+.status-bar span{font-size:13px;line-height:1.4}
+.status-bar.green span{color:#085041}
+.status-bar.blue span{color:#0C447C}
+.status-bar.amber span{color:var(--amber)}
+.status-bar svg{flex-shrink:0;width:16px;height:16px;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.status-bar.green svg{stroke:var(--green-dark)}
+.status-bar.blue svg{stroke:var(--blue)}
+.spinner{width:16px;height:16px;border-radius:50%;border:2px solid var(--green-mid);border-top-color:var(--green);animation:spin 0.7s linear infinite;flex-shrink:0}
+.spinner.blue{border-color:#B5D4F4;border-top-color:var(--blue)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.filename-box{background:var(--bg);border-radius:var(--radius);padding:10px 12px;margin-bottom:1rem;font-size:11px;color:var(--text2);word-break:break-all;font-family:monospace;line-height:1.5;border:0.5px solid var(--border)}
+.filename-label{font-size:11px;font-weight:600;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em}
+.preview-box{border-radius:var(--radius-lg);overflow:hidden;border:0.5px solid var(--border);margin-bottom:1rem;background:var(--bg);min-height:80px;display:flex;align-items:center;justify-content:center}
+.preview-box img{width:100%;max-height:180px;object-fit:contain}
+.result-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:0.5px solid var(--border);font-size:13px}
+.result-row:last-child{border:none}
+.result-label{color:var(--text2)}
+.result-val{font-weight:600;font-size:12px}
+.result-val.ok{color:var(--green-dark)}
+.result-val.warn{color:var(--amber)}
+.success-wrap{text-align:center;padding:1.5rem 0.5rem}
+.success-icon{width:60px;height:60px;border-radius:50%;background:var(--green-light);margin:0 auto 1rem;display:flex;align-items:center;justify-content:center}
+.success-icon svg{width:26px;height:26px;stroke:var(--green-dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.success-title{font-size:20px;font-weight:700;margin-bottom:6px}
+.success-sub{font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:1rem}
+input[type=file]{display:none}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="header-top">
+      <span class="logo">Strong — Expenses</span>
+      <div class="auth-pill">
+        <div class="auth-dot" id="authDot"></div>
+        <span class="auth-text" id="authLabel">Not configured</span>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="step active" id="s1"></div>
+      <div class="step" id="s2"></div>
+      <div class="step" id="s3"></div>
+      <div class="step" id="s4"></div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- CONFIG -->
+    <div class="screen" id="screen-config">
+      <p class="section-title">Setup</p>
+      <div class="info-card">Your credentials stay on this device only.</div>
+      <div class="field-group">
+        <label class="field-label">Anthropic API key <span class="req">*</span></label>
+        <input class="field-input" type="password" id="cfgAnthKey" placeholder="sk-ant-...">
+      </div>
+      <div class="field-group">
+        <label class="field-label">Google OAuth Client ID <span class="req">*</span></label>
+        <input class="field-input" type="text" id="cfgGoogleClientId" placeholder="xxxxxxxxx.apps.googleusercontent.com">
+      </div>
+      <div class="field-group">
+        <label class="field-label">Corporate email to notify <span class="req">*</span></label>
+        <input class="field-input" type="email" id="cfgCorpEmail" placeholder="rlucas@strong-eu.com" value="rlucas@strong-eu.com">
+      </div>
+      <div class="field-group">
+        <label class="field-label">Google Drive base folder name</label>
+        <input class="field-input" type="text" id="cfgFolder" placeholder="Strong Expenses" value="Strong Expenses">
+        <p style="font-size:11px;color:var(--text3);margin-top:4px">Subfolders like 2026-04/receipts are created automatically</p>
+      </div>
+      <div style="margin-top:1rem">
+        <button class="btn primary full" onclick="saveConfig()">Save & continue</button>
+      </div>
+      <div class="info-card" style="margin-top:0.75rem;font-size:12px">
+        <strong>Google setup:</strong> console.cloud.google.com → New project → Enable Drive API + Gmail API → Credentials → OAuth Client ID (Web application) → add <code>https://localhost</code> as authorised origin → copy Client ID here.
+      </div>
+    </div>
+
+    <!-- UPLOAD -->
+    <div class="screen visible" id="screen-upload">
+      <input type="file" id="fileInput" accept="image/*,application/pdf" onchange="handleFile(this)">
+      <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="handleFile(this)">
+      <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+        <div class="upload-icon">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <div class="upload-title">Upload receipt</div>
+        <div class="upload-sub">Tap to choose JPG, PNG or PDF</div>
+      </div>
+      <div class="divider"><span>or</span></div>
+      <div class="btn-row" style="margin-bottom:0.75rem">
+        <button class="btn" onclick="document.getElementById('cameraInput').click()">📷 Take photo</button>
+        <button class="btn" onclick="document.getElementById('fileInput').click()">📄 Browse file</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn small" onclick="goTo('config')">⚙ Settings</button>
+        <button class="btn small primary" id="signinBtn" onclick="signInGoogle()">Sign in Google</button>
+      </div>
+    </div>
+
+    <!-- REVIEW -->
+    <div class="screen" id="screen-review">
+      <div id="previewBox" class="preview-box"></div>
+      <div id="aiBar" class="status-bar green"><div class="spinner"></div><span>Reading receipt with AI…</span></div>
+      <div class="two-col">
+        <div class="field-group">
+          <label class="field-label">Date <span class="req">*</span></label>
+          <input class="field-input" type="date" id="fDate">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Amount <span class="req">*</span></label>
+          <input class="field-input" type="text" id="fAmount" placeholder="32.50">
+        </div>
+      </div>
+      <div class="two-col">
+        <div class="field-group">
+          <label class="field-label">Currency</label>
+          <select class="field-input" id="fCurrency">
+            <option>EUR</option><option>GBP</option><option>USD</option><option>SEK</option><option>DKK</option><option>NOK</option><option>CHF</option><option>HUF</option><option>PLN</option><option>CZK</option><option>BGN</option><option>TRY</option><option>CNY</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Centre de coût</label>
+          <select class="field-input" id="fCC"><option>B2B</option><option>B2C</option><option>EU</option></select>
+        </div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Category <span class="req">*</span></label>
+        <select class="field-input" id="fCat" onchange="updateTypes()">
+          <option>TRANSPORT</option><option>RESTAURATION</option><option>HEBERGEMENT</option><option>FRAIS</option><option>ACHAT</option><option>FOURNITURE</option><option>ABONNEMENT</option><option>INSCRIPTION</option><option>REUNION</option><option>VEHICULE_PERSONNEL</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Type <span class="req">*</span></label>
+        <select class="field-input" id="fType"></select>
+      </div>
+      <div class="two-col">
+        <div class="field-group">
+          <label class="field-label">Country</label>
+          <select class="field-input" id="fCountry">
+            <option>France</option><option>Espagne</option><option>Allemagne</option><option>Angleterre</option><option>Pays Bas</option><option>Belgique</option><option>Danemark</option><option>Suède</option><option>Norvège</option><option>Finlande</option><option>Italie</option><option>Portugal</option><option>Autriche</option><option>Chine</option><option>Pologne</option><option>Hongrie</option><option>Turquie</option><option>Bulgarie</option><option>Roumanie</option><option>Croatie</option><option>Serbie</option><option>Grèce</option><option>Ukraine</option><option>Luxembourg</option><option>Slovaquie</option><option>République Tchèque</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Entité</label>
+          <select class="field-input" id="fEntity">
+            <option>Strong France</option><option>Strong Allemagne</option><option>Strong Angleterre</option><option>Strong Autriche</option><option>Strong Danemark</option><option>Strong Italie</option><option>Strong Pays Bas</option><option>Strong Turquie</option><option>SKYWORTH</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Description</label>
+        <input class="field-input" type="text" id="fDesc" placeholder="e.g. Uber CDG to client office">
+      </div>
+      <div class="field-group" id="guestField" style="display:none">
+        <label class="field-label">Guests — company + name <span class="req">*</span></label>
+        <input class="field-input" type="text" id="fGuests" placeholder="ClientCo - John Smith, Jane Doe">
+      </div>
+      <div class="field-group">
+        <label class="field-label">Event type (if applicable)</label>
+        <select class="field-input" id="fEventType">
+          <option value=""></option><option>Atelier</option><option>Conférence</option><option>Événement Strong France</option><option>Réunion</option><option>Réunion des Ventes</option><option>Salon</option><option>Séminaire</option><option>TeamBuiliding</option><option>Visite HQ Chine Shenzhen</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Event name (if applicable)</label>
+        <input class="field-input" type="text" id="fEventName" placeholder="e.g. IFA Berlin">
+      </div>
+      <div class="field-group">
+        <label class="field-label">Comments</label>
+        <input class="field-input" type="text" id="fComments" placeholder="Exception or missing receipt note…">
+      </div>
+      <div class="filename-label">Generated filename</div>
+      <div class="filename-box" id="filenamePreview">—</div>
+      <div class="btn-row">
+        <button class="btn danger" onclick="goTo('upload')">← Back</button>
+        <button class="btn primary" onclick="goToSend()">Confirm →</button>
+      </div>
+    </div>
+
+    <!-- SEND -->
+    <div class="screen" id="screen-send">
+      <p class="section-title">Save & send</p>
+      <div id="sendStatusBar" class="status-bar blue"><div class="spinner blue"></div><span>Preparing…</span></div>
+      <div id="sendActions" style="display:none">
+        <div class="filename-label">File to save</div>
+        <div class="filename-box" id="sendFilename"></div>
+        <div class="card" id="sendResultRows"></div>
+        <div class="btn-row" style="margin-top:0.75rem">
+          <button class="btn danger" onclick="goTo('review')">← Edit</button>
+          <button class="btn primary" id="sendBtn" onclick="doSend()">Save & send →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUCCESS -->
+    <div class="screen" id="screen-success">
+      <div class="success-wrap">
+        <div class="success-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div class="success-title">Done!</div>
+        <div class="success-sub" id="successSub"></div>
+        <div class="filename-box" id="successFilename"></div>
+        <div class="card" id="successRows" style="text-align:left;margin-bottom:1rem"></div>
+        <button class="btn primary full" onclick="resetAndNew()">New expense →</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const TYPES={
+  TRANSPORT:['Taxi','Train','Avion','Bus','Metro','Bateau','Tram','Parking','Peage','Essence','Location vehicule'],
+  RESTAURATION:['Diner','Dejeuner','Petit-Dejeuner','Boissons','Invitation Client','Invitation Strong','Invitation Client et Strong','Invitation Skyworth'],
+  HEBERGEMENT:['Hotel','AirBnB','Chambre Hote'],
+  FRAIS:['Administratifs','Envoi Echantillons','Envoi Postaux','Envoi Colis','Visa','Roaming'],
+  ACHAT:['HW Ordinateur','HW Telephone','HW Accessoires','HW Carte SIM','HW Reparation','Echantillons'],
+  FOURNITURE:['Bureau','Home Office','Impression PLV','Petit Outillage'],
+  ABONNEMENT:['Internet Home Office','Carte Reduction Transport'],
+  INSCRIPTION:['Salon Client','Salon Salarie Strong'],
+  REUNION:['Location de salle'],
+  VEHICULE_PERSONNEL:['Indemnites kilometriques','Recharge vehicule','Lavage vehicule']
+};
+const MONTHS_EN=['January','February','March','April','May','June','July','August','September','October','November','December'];
+let st={file:null,fileType:'',b64:'',mediaType:'',googleToken:null};
+
+function cfg(k){return localStorage.getItem(k)||''}
+function setCfg(k,v){localStorage.setItem(k,v)}
+
+function goTo(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('visible'));
+  document.getElementById('screen-'+name).classList.add('visible');
+  const order=['upload','review','send','success'];
+  const i=order.indexOf(name);
+  ['s1','s2','s3','s4'].forEach((id,j)=>{
+    const e=document.getElementById(id);
+    e.className='step'+(j<i?' done':j===i?' active':'');
+  });
+  window.scrollTo(0,0);
+}
+
+function updateAuthUI(){
+  const dot=document.getElementById('authDot');
+  const lbl=document.getElementById('authLabel');
+  const btn=document.getElementById('signinBtn');
+  if(st.googleToken){
+    dot.className='auth-dot on';lbl.textContent='Signed in';
+    if(btn){btn.textContent='✓ Google';btn.style.background='var(--green)';btn.style.color='#fff';btn.style.borderColor='var(--green)'}
+  } else if(cfg('anthKey')&&cfg('cfgGoogleClientId')){
+    dot.className='auth-dot';lbl.textContent='Configured';
+  } else {
+    dot.className='auth-dot';lbl.textContent='Not configured';
+  }
+}
+
+function saveConfig(){
+  const k=document.getElementById('cfgAnthKey').value.trim();
+  const g=document.getElementById('cfgGoogleClientId').value.trim();
+  const e=document.getElementById('cfgCorpEmail').value.trim();
+  const f=document.getElementById('cfgFolder').value.trim()||'Strong Expenses';
+  if(!k||!g||!e){alert('Please fill in Anthropic key, Google Client ID and corporate email');return}
+  setCfg('anthKey',k);setCfg('cfgGoogleClientId',g);setCfg('corpEmail',e);setCfg('baseFolder',f);
+  updateAuthUI();goTo('upload');
+}
+
+function signInGoogle(){
+  const cid=cfg('cfgGoogleClientId');
+  if(!cid){alert('Please go to Settings first and enter your Google Client ID');goTo('config');return}
+  const scope=encodeURIComponent('https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.send');
+  const redirectUri=encodeURIComponent(window.location.href.split('?')[0].split('#')[0]);
+  const url=`https://accounts.google.com/o/oauth2/v2/auth?client_id=${cid}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}&prompt=select_account`;
+  const popup=window.open(url,'googleauth','width=500,height=600');
+  const timer=setInterval(()=>{
+    try{
+      const u=popup.location.href;
+      if(u.includes('access_token')){
+        clearInterval(timer);popup.close();
+        const hash=u.includes('#')?u.split('#')[1]:u.split('?')[1];
+        const p=new URLSearchParams(hash);
+        st.googleToken=p.get('access_token');
+        updateAuthUI();
+      }
+    }catch(e){}
+  },500);
+}
+
+function updateTypes(){
+  const cat=document.getElementById('fCat').value;
+  const sel=document.getElementById('fType');
+  sel.innerHTML=TYPES[cat].map(t=>`<option>${t}</option>`).join('');
+  document.getElementById('guestField').style.display=cat==='RESTAURATION'?'block':'none';
+  updateFilename();
+}
+
+function slug(s){
+  return(s||'').trim()
+    .replace(/[éèêë]/g,'e').replace(/[àâä]/g,'a').replace(/[îï]/g,'i')
+    .replace(/[ôö]/g,'o').replace(/[ùûü]/g,'u').replace(/[ç]/g,'c')
+    .replace(/\s+/g,'-').replace(/[^a-zA-Z0-9\-,]/g,'');
+}
+
+function updateFilename(){
+  const d=document.getElementById('fDate').value;
+  const cat=document.getElementById('fCat').value;
+  const type=document.getElementById('fType').value;
+  const desc=slug(document.getElementById('fDesc').value);
+  const guests=slug(document.getElementById('fGuests').value);
+  const country=slug(document.getElementById('fCountry').value);
+  const cc=document.getElementById('fCC').value;
+  const amt=document.getElementById('fAmount').value.trim();
+  const cur=document.getElementById('fCurrency').value;
+  const evt=slug(document.getElementById('fEventName').value);
+  let parts=[];
+  if(d)parts.push(d);
+  parts.push(`${cat}_${slug(type)}`);
+  if(desc)parts.push(desc);
+  if(guests&&cat==='RESTAURATION')parts.push(guests);
+  parts.push(country||'France');
+  parts.push(cc);
+  if(amt)parts.push(`${amt}${cur}`);
+  if(evt)parts.push(evt);
+  const ext=st.fileType==='pdf'?'.pdf':'.jpg';
+  const fn=parts.join(' - ')+ext;
+  document.getElementById('filenamePreview').textContent=fn;
+  return fn;
+}
+
+['fDate','fAmount','fCurrency','fCC','fCat','fType','fCountry','fEntity','fDesc','fGuests','fEventType','fEventName','fComments'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el){el.addEventListener('input',updateFilename);if(el.tagName==='SELECT')el.addEventListener('change',updateFilename)}
+});
+
+function handleFile(input){
+  const file=input.files[0];if(!file)return;
+  st.file=file;st.fileType=file.type==='application/pdf'?'pdf':'image';st.mediaType=file.type;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    st.b64=e.target.result.split(',')[1];
+    const box=document.getElementById('previewBox');
+    box.innerHTML=st.fileType==='pdf'
+      ?`<div style="padding:1rem;font-size:13px;color:var(--text2);text-align:center">📄 ${file.name}</div>`
+      :`<img src="${e.target.result}" alt="Receipt">`;
+    goTo('review');extractAI();
+  };
+  reader.readAsDataURL(file);
+}
+
+async function extractAI(){
+  const bar=document.getElementById('aiBar');
+  bar.className='status-bar green';
+  bar.innerHTML=`<div class="spinner"></div><span>Reading receipt with AI…</span>`;
+  const key=cfg('anthKey');
+  if(!key){bar.className='status-bar amber';bar.innerHTML=`<span>⚠ No API key — go to Settings</span>`;return}
+  try{
+    const content=st.fileType==='pdf'
+      ?[{type:'document',source:{type:'base64',media_type:'application/pdf',data:st.b64}},{type:'text',text:'Extract from this receipt. Reply ONLY JSON no markdown: {"date":"YYYY-MM-DD","amount":"number only","currency":"3-letter ISO","merchant":"name","expenseType":"taxi/uber/train/plane/bus/hotel/dinner/lunch/breakfast/drinks/purchase","country":"English country name"}'}]
+      :[{type:'image',source:{type:'base64',media_type:st.mediaType,data:st.b64}},{type:'text',text:'Extract from this receipt. Reply ONLY JSON no markdown: {"date":"YYYY-MM-DD","amount":"number only no symbol","currency":"3-letter ISO like EUR GBP USD","merchant":"vendor name","expenseType":"taxi/uber/train/plane/bus/hotel/dinner/lunch/breakfast/drinks/purchase","country":"English country name"}'}];
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:300,messages:[{role:'user',content}]})
+    });
+    const data=await res.json();
+    const text=(data.content?.[0]?.text||'{}').replace(/```json|```/g,'').trim();
+    const p=JSON.parse(text);
+    if(p.date)document.getElementById('fDate').value=p.date;
+    if(p.amount)document.getElementById('fAmount').value=p.amount;
+    if(p.currency){const s=document.getElementById('fCurrency');for(let o of s.options)if(o.value===p.currency.toUpperCase()){s.value=o.value;break}}
+    if(p.country){
+      const m={france:'France',spain:'Espagne','united kingdom':'Angleterre',england:'Angleterre',germany:'Allemagne',netherlands:'Pays Bas',belgium:'Belgique',denmark:'Danemark',sweden:'Suède',norway:'Norvège',finland:'Finlande',italy:'Italie',portugal:'Portugal',austria:'Autriche',china:'Chine',poland:'Pologne',hungary:'Hongrie',turkey:'Turquie',greece:'Grèce',ukraine:'Ukraine',luxembourg:'Luxembourg',slovakia:'Slovaquie','czech republic':'République Tchèque',croatia:'Croatie',serbia:'Serbie',bulgaria:'Bulgarie',romania:'Roumanie'};
+      const mapped=m[(p.country||'').toLowerCase()];
+      if(mapped){const s=document.getElementById('fCountry');for(let o of s.options)if(o.value===mapped){s.value=o.value;break}}
+    }
+    if(p.expenseType){
+      const t=p.expenseType.toLowerCase();
+      let cat='TRANSPORT',type='Taxi';
+      if(t.includes('uber')||t.includes('taxi')){cat='TRANSPORT';type='Taxi'}
+      else if(t.includes('train')){cat='TRANSPORT';type='Train'}
+      else if(t.includes('plane')||t.includes('air')||t.includes('flight')){cat='TRANSPORT';type='Avion'}
+      else if(t.includes('bus')){cat='TRANSPORT';type='Bus'}
+      else if(t.includes('dinner')){cat='RESTAURATION';type='Diner'}
+      else if(t.includes('lunch')){cat='RESTAURATION';type='Dejeuner'}
+      else if(t.includes('breakfast')){cat='RESTAURATION';type='Petit-Dejeuner'}
+      else if(t.includes('drink')){cat='RESTAURATION';type='Boissons'}
+      else if(t.includes('hotel')){cat='HEBERGEMENT';type='Hotel'}
+      else if(t.includes('purchase')){cat='ACHAT';type='HW Accessoires'}
+      document.getElementById('fCat').value=cat;updateTypes();
+      const typeEl=document.getElementById('fType');
+      for(let o of typeEl.options)if(o.value===type){typeEl.value=type;break}
+    }
+    if(p.merchant)document.getElementById('fDesc').value=p.merchant;
+    bar.innerHTML=`<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><span>AI extracted — review and adjust if needed</span>`;
+    updateFilename();
+  }catch(e){
+    bar.className='status-bar amber';
+    bar.innerHTML=`<span>⚠ Could not read receipt automatically — please fill in manually</span>`;
+  }
+}
+
+function goToSend(){
+  const fn=updateFilename();
+  document.getElementById('sendFilename').textContent=fn;
+  const hasToken=!!st.googleToken;
+  document.getElementById('sendResultRows').innerHTML=`
+    <div class="result-row"><span class="result-label">Upload receipt to Google Drive</span><span class="result-val ${hasToken?'ok':'warn'}">${hasToken?'✓ Ready':'⚠ Sign in first'}</span></div>
+    <div class="result-row"><span class="result-label">Send email to rlucas@strong-eu.com</span><span class="result-val ${hasToken?'ok':'warn'}">${hasToken?'✓ Ready':'⚠ Sign in first'}</span></div>`;
+  document.getElementById('sendStatusBar').style.display='none';
+  document.getElementById('sendActions').style.display='block';
+  if(!hasToken)document.getElementById('sendBtn').textContent='Sign in & send →';
+  goTo('send');
+}
+
+// Google Drive helpers
+async function driveCall(method,path,body,isBlob,extraHeaders){
+  const headers={Authorization:'Bearer '+st.googleToken,...(extraHeaders||{})};
+  if(body&&!isBlob)headers['Content-Type']='application/json';
+  const res=await fetch('https://www.googleapis.com'+path,{method,headers,body:body?(isBlob?body:JSON.stringify(body)):undefined});
+  if(!res.ok){const err=await res.text();throw new Error(`Drive ${res.status}: ${err.substring(0,200)}`)}
+  if(res.status===204)return null;
+  return res.json();
+}
+
+async function getOrCreateFolder(name,parentId){
+  const q=encodeURIComponent(`name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false${parentId?` and '${parentId}' in parents`:''}`);
+  const res=await driveCall('GET',`/drive/v3/files?q=${q}&fields=files(id,name)`);
+  if(res.files&&res.files.length>0)return res.files[0].id;
+  const meta={name,mimeType:'application/vnd.google-apps.folder',...(parentId?{parents:[parentId]}:{})};
+  const created=await driveCall('POST','/drive/v3/files',meta);
+  return created.id;
+}
+
+async function uploadFileToDrive(fname,b64data,mimeType,folderId){
+  const bin=Uint8Array.from(atob(b64data),c=>c.charCodeAt(0));
+  const meta=JSON.stringify({name:fname,parents:[folderId]});
+  const boundary='-------314159265358979323846';
+  const delimiter=`\r\n--${boundary}\r\n`;
+  const closeDelim=`\r\n--${boundary}--`;
+  const metaPart=`${delimiter}Content-Type: application/json\r\n\r\n${meta}`;
+  const filePart=`${delimiter}Content-Type: ${mimeType}\r\nContent-Transfer-Encoding: base64\r\n\r\n${b64data}${closeDelim}`;
+  const body=metaPart+filePart;
+  const res=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',{
+    method:'POST',
+    headers:{Authorization:'Bearer '+st.googleToken,'Content-Type':`multipart/related; boundary="${boundary}"`},
+    body
+  });
+  if(!res.ok){const err=await res.text();throw new Error(`Upload ${res.status}: ${err.substring(0,200)}`)}
+  return res.json();
+}
+
+function getMonthFolder(dateStr){
+  const d=dateStr?new Date(dateStr):new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+// Gmail send
+function makeEmail(to,subject,body){
+  const msg=`To: ${to}\r\nSubject: ${subject}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${body}`;
+  return btoa(unescape(encodeURIComponent(msg))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+
+async function sendGmail(to,subject,body){
+  const raw=makeEmail(to,subject,body);
+  await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send',{
+    method:'POST',
+    headers:{Authorization:'Bearer '+st.googleToken,'Content-Type':'application/json'},
+    body:JSON.stringify({raw})
+  });
+}
+
+async function doSend(){
+  if(!st.googleToken){signInGoogle();return}
+  const btn=document.getElementById('sendBtn');
+  btn.disabled=true;btn.textContent='Saving…';
+  const statusBar=document.getElementById('sendStatusBar');
+  statusBar.style.display='flex';statusBar.className='status-bar blue';
+  const fn=updateFilename();
+  const dateVal=document.getElementById('fDate').value;
+  try{
+    // Create folder structure
+    statusBar.innerHTML=`<div class="spinner blue"></div><span>Creating folders in Google Drive…</span>`;
+    const baseName=cfg('baseFolder')||'Strong Expenses';
+    const monthStr=getMonthFolder(dateVal);
+    const baseId=await getOrCreateFolder(baseName,null);
+    const monthId=await getOrCreateFolder(monthStr,baseId);
+    const receiptsId=await getOrCreateFolder('receipts',monthId);
+
+    // Upload receipt
+    statusBar.innerHTML=`<div class="spinner blue"></div><span>Uploading receipt…</span>`;
+    const uploaded=await uploadFileToDrive(fn,st.b64,st.mediaType,receiptsId);
+    const fileLink=uploaded.webViewLink||'(saved to Google Drive)';
+
+    // Send email
+    statusBar.innerHTML=`<div class="spinner blue"></div><span>Sending confirmation email…</span>`;
+    const corpEmail=cfg('corpEmail')||'rlucas@strong-eu.com';
+    const emailBody=`Expense recorded successfully.\n\nFile: ${fn}\nGoogle Drive: ${baseName}/${monthStr}/receipts/\nDrive link: ${fileLink}\n\nDate: ${dateVal}\nAmount: ${document.getElementById('fAmount').value} ${document.getElementById('fCurrency').value}\nCategory: ${document.getElementById('fCat').value} — ${document.getElementById('fType').value}\nCountry: ${document.getElementById('fCountry').value}\nCentre de coût: ${document.getElementById('fCC').value}\nDescription: ${document.getElementById('fDesc').value}\n${document.getElementById('fGuests').value?'Guests: '+document.getElementById('fGuests').value+'\n':''}${document.getElementById('fComments').value?'Comments: '+document.getElementById('fComments').value:''}`;
+    await sendGmail(corpEmail,`✓ Expense: ${fn}`,emailBody);
+
+    // Success
+    document.getElementById('successSub').textContent=`Receipt saved to Google Drive and confirmation sent to ${corpEmail}.`;
+    document.getElementById('successFilename').textContent=fn;
+    document.getElementById('successRows').innerHTML=`
+      <div class="result-row"><span class="result-label">Google Drive folder</span><span class="result-val ok">✓ ${baseName}/${monthStr}/receipts</span></div>
+      <div class="result-row"><span class="result-label">Confirmation email</span><span class="result-val ok">✓ Sent to ${corpEmail}</span></div>`;
+    goTo('success');
+  }catch(e){
+    statusBar.className='status-bar amber';
+    statusBar.innerHTML=`<span>⚠ Error: ${e.message}</span>`;
+    btn.disabled=false;btn.textContent='Retry →';
+  }
+}
+
+function resetAndNew(){
+  st={file:null,fileType:'',b64:'',mediaType:'',googleToken:st.googleToken};
+  ['fDate','fAmount','fDesc','fGuests','fEventName','fComments'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fCC').value='B2B';
+  document.getElementById('fCat').value='TRANSPORT';
+  document.getElementById('previewBox').innerHTML='';
+  document.getElementById('sendStatusBar').style.display='flex';
+  document.getElementById('sendStatusBar').innerHTML=`<div class="spinner blue"></div><span>Preparing…</span>`;
+  document.getElementById('sendActions').style.display='none';
+  updateTypes();goTo('upload');
+}
+
+(function init(){
+  if(cfg('anthKey'))document.getElementById('cfgAnthKey').value=cfg('anthKey');
+  if(cfg('cfgGoogleClientId'))document.getElementById('cfgGoogleClientId').value=cfg('cfgGoogleClientId');
+  if(cfg('corpEmail'))document.getElementById('cfgCorpEmail').value=cfg('corpEmail');
+  else document.getElementById('cfgCorpEmail').value='rlucas@strong-eu.com';
+  if(cfg('baseFolder'))document.getElementById('cfgFolder').value=cfg('baseFolder');
+  document.getElementById('fCC').value='B2B';
+  updateTypes();updateAuthUI();
+})();
+</script>
+</body>
+</html>
