@@ -616,7 +616,7 @@ async function doSend(){
     const corpEmail=cfg('corpEmail')||'rlucas@strong-eu.com';
     const expenses=getExpenses(monthKey);
     const emailBody=`Expense recorded successfully.\n\nFile: ${fn}\nGoogle Drive: ${baseName}/${monthKey}/receipts/\nLink: ${fileLink}\n\nDate: ${dateVal}\nAmount: ${expense.amount} ${expense.currency}\nCategory: ${expense.cat} — ${expense.type}\nCountry: ${expense.country}\nCentre de coût: ${expense.cc}\nDescription: ${expense.desc}\n${expense.guests?'Guests: '+expense.guests+'\n':''}${expense.comments?'Comments: '+expense.comments+'\n':''}\n---\nTotal expenses logged this month: ${expenses.length}\nTotal amount (EUR): ${expenses.filter(e=>e.currency==='EUR').reduce((s,e)=>s+e.amount,0).toFixed(2)} EUR`;
-    await sendGmail(corpEmail,`✓ Expense: ${fn}`,emailBody);
+    await sendGmail(corpEmail,`STRONG NDF - Expense: ${fn}`,emailBody);
     const expenses2=getExpenses(monthKey);
     document.getElementById('successSub').textContent=`Receipt saved to Google Drive and confirmation sent to ${corpEmail}. ${expenses2.length} expense${expenses2.length===1?'':'s'} logged this month.`;
     document.getElementById('successFilename').textContent=fn;
